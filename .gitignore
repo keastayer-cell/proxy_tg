@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+*.env
+*.secret
+*.pem
+*.key
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+dist/
+build/

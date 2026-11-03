@@ -1,0 +1,18 @@
+[Unit]
+Description=Refresh official Telegram proxy configuration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=proxy-tg
+Group=proxy-tg
+StateDirectory=proxy_tg
+ExecStart=/usr/bin/python3 /opt/proxy_tg/current/proxy.py refresh
+ExecStartPost=+/usr/bin/systemctl try-restart proxy-tg.service
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=64M

@@ -1,0 +1,70 @@
+name: Verify, build and deploy proxy
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proxy-tg-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate project
+        run: make check
+      - name: Install upstream build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends build-essential libssl-dev zlib1g-dev
+      - name: Build pinned official MTProxy
+        run: make build
+      - name: Check binary and units
+        run: |
+          test -x dist/bin/mtproto-proxy
+          ldd dist/bin/mtproto-proxy
+          sudo install -d /opt/proxy_tg/current
+          sudo cp proxy.py /opt/proxy_tg/current/proxy.py
+          sudo systemd-analyze verify deploy/*.service deploy/*.timer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: proxy-tg-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+  deploy:
+    needs: verify-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AUTO_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: proxy-tg-${{ github.sha }}
+          path: dist/
+      - name: Upload release (configuration and secrets excluded)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          fingerprint: ${{ secrets.VPS_FINGERPRINT }}
+          source: dist,proxy.py,deploy
+          target: /opt/proxy_tg/incoming
+      - name: Prepare or activate release
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          fingerprint: ${{ secrets.VPS_FINGERPRINT }}
+          script: |
+            set -eu
+            bash /opt/proxy_tg/incoming/deploy/bootstrap.sh '${{ secrets.VPS_HOST }}'
+            bash /opt/proxy_tg/incoming/deploy/apply-release.sh '${{ github.sha }}' '${{ github.run_id }}-${{ github.run_attempt }}'
