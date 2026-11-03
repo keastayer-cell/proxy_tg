@@ -42,4 +42,4 @@ sleep 2
 systemctl is-active --quiet proxy-socks.service
 bash /opt/proxy_tg/socks/mss.sh check
 test "$(systemctl show proxy-tg.service --value -p MainPID)" = "$mtproxy_pid_before"
-echo 'SOCKS5 running; MTProxy PID unchanged' 
+echo 'SOCKS5 running; MTProxy PID unchanged'

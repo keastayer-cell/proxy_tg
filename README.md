@@ -162,6 +162,7 @@ ssh root@178.62.199.241 'cat /etc/proxy_tg/socks-credentials.json' | \
   .venv/bin/python socks/probe.py --credentials-file /dev/stdin
 ```
 
-Проверяются отсутствие анонимного доступа, неверный пароль, TCP MSS, ограничение
-назначений и полноценный обмен ключами MTProto с Telegram. В отчёте пароль скрыт.
+Проверяются отсутствие анонимного доступа, неверный пароль, клиентский TCP_MAXSEG, ограничение
+назначений и полноценный обмен ключами MTProto с Telegram. Реальное MSS в SYN-ACK
+проверяется отдельно на сервере и с внешнего Linux VPS. В отчёте пароль скрыт.
 Сервис имеет Restart=on-failure, автозапуск, MemoryMax128M и CPUQuota25%.
