@@ -1,0 +1,14 @@
+[Unit]
+Description=TCP MSS for personal SOCKS5 listener only
+Before=proxy-socks.service
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash /opt/proxy_tg/socks/mss.sh apply
+ExecStop=/bin/bash /opt/proxy_tg/socks/mss.sh remove
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW

@@ -2,6 +2,15 @@ name: Verify, build and deploy proxy
 on:
   push:
     branches: [main]
+    paths:
+      - 'proxy.py'
+      - 'probe.py'
+      - 'fake_tls.py'
+      - 'UPSTREAM_REVISION'
+      - 'deploy/**'
+      - 'tests/test_proxy.py'
+      - 'Makefile'
+      - '.github/workflows/pipeline.yml'
   pull_request:
   workflow_dispatch:
 

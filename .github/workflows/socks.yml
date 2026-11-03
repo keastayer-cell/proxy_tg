@@ -1,0 +1,45 @@
+name: Verify and deploy personal SOCKS5
+on:
+  push:
+    branches: [main]
+    paths: ['socks/**', 'tests/test_socks.py', '.github/workflows/socks.yml']
+  pull_request:
+    paths: ['socks/**', 'tests/test_socks.py', '.github/workflows/socks.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: proxy-tg-socks-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check config generation and scripts
+        run: |
+          python3 -m unittest discover -s tests -v
+          bash -n socks/install.sh socks/mss.sh socks/ci-deploy.sh
+          sudo systemctl mask danted.service
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends dante-server
+          python3 socks/configure.py /tmp/proxy-socks.conf
+          sudo useradd --system --no-create-home --shell /usr/sbin/nologin tgproxy
+          sudo /usr/sbin/danted -V -f /tmp/proxy-socks.conf
+          sudo install -d /opt/proxy_tg/socks
+          sudo cp socks/mss.sh /opt/proxy_tg/socks/mss.sh
+          sudo systemd-analyze verify socks/*.service
+  deploy:
+    needs: verify
+    if: github.event_name != 'pull_request' && vars.SOCKS_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy SOCKS5 without restarting MTProxy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}
+        run: bash socks/ci-deploy.sh
