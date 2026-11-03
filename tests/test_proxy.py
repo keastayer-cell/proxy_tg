@@ -56,6 +56,12 @@ class SettingsTests(unittest.TestCase):
                 else:
                     self.assertIn('secret=dd' + self.env['PROXY_SECRET'], output.getvalue())
 
+    def test_health_connects_only_to_local_proxy_port(self):
+        with patch.dict(os.environ, self.env, clear=True), patch.object(proxy.socket, 'create_connection') as connect:
+            with patch('sys.argv', ['proxy.py', 'health']), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(proxy.main(), 0)
+            connect.assert_called_once_with(('127.0.0.1', 443), timeout=2)
+
     def test_init_cannot_overwrite_existing_secret(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'private.env'

@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import secrets
 import shutil
+import socket
 import sys
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -96,7 +97,7 @@ def refresh(state_dir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--env-file')
-    parser.add_argument('action', choices=['init', 'validate', 'run', 'refresh', 'link'])
+    parser.add_argument('action', choices=['init', 'validate', 'run', 'refresh', 'link', 'health'])
     parser.add_argument('--host')
     parser.add_argument('--output', default='/etc/proxy_tg/proxy.env')
     args = parser.parse_args()
@@ -115,6 +116,11 @@ def main():
         elif args.action == 'refresh':
             refresh(os.environ.get('PROXY_STATE_DIR', '/var/lib/proxy_tg'))
             print('Telegram configuration refreshed')
+        elif args.action == 'health':
+            _, port, _, _ = settings(os.environ)
+            with socket.create_connection(('127.0.0.1', port), timeout=2):
+                pass
+            print('OK: local proxy TCP listener')
         elif args.action == 'run':
             argv = command(os.environ)
             os.execv(argv[0], argv)

@@ -20,7 +20,13 @@ install -m 0644 "$incoming/proxy.py" "$release/proxy.py"
 install -m 0644 "$incoming/dist/UPSTREAM_REVISION" "$release/UPSTREAM_REVISION"
 install -m 0644 "$incoming/deploy/"*.service "$incoming/deploy/"*.timer "$release/deploy/"
 python3 -m py_compile "$release/proxy.py"
-previous=$(readlink -f "$base/current" || true)
+previous=
+if [[ -L "$base/current" && -d "$base/current" ]]; then
+  candidate=$(readlink -f "$base/current")
+  if [[ "$candidate" == "$base/releases/"* && -f "$candidate/proxy.py" && -d "$candidate/deploy" ]]; then
+    previous=$candidate
+  fi
+fi
 ln -s "$release" "$base/.current-$revision"
 mv -Tf "$base/.current-$revision" "$base/current"
 install -m 0644 "$release/deploy/"*.service "$release/deploy/"*.timer /etc/systemd/system/
@@ -33,7 +39,7 @@ systemctl enable proxy-tg.service proxy-tg-refresh.timer
 systemctl start proxy-tg-refresh.timer
 if systemctl restart proxy-tg.service; then
 for attempt in $(seq 1 20); do
-  if systemctl is-active --quiet proxy-tg.service && curl -fsS --max-time 2 "http://127.0.0.1:$(sed -n 's/^STATS_PORT=//p' /etc/proxy_tg/proxy.env)/stats" >/dev/null; then
+  if systemctl is-active --quiet proxy-tg.service && python3 "$release/proxy.py" --env-file /etc/proxy_tg/proxy.env health >/dev/null 2>&1; then
     sleep 3
     systemctl is-active --quiet proxy-tg.service && exit 0
   fi
