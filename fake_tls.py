@@ -6,22 +6,31 @@ The server is authenticated with the private MTProxy secret via HMAC-SHA256.
 import asyncio
 import hashlib
 import hmac
-import ssl
+import secrets
 import struct
 import time
 
 
 def client_hello(domain, secret):
-    incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    connection = context.wrap_bio(incoming, outgoing, server_hostname=domain)
-    try:
-        connection.do_handshake()
-    except ssl.SSLWantReadError:
-        pass
-    hello = bytearray(outgoing.read())
-    if len(hello) < 517 or hello[:3] != b'\x16\x03\x01' or hello[43] != 32:
-        raise ValueError('Unsupported probe ClientHello layout')
+    name = domain.encode('ascii')
+    def extension(kind, payload):
+        return kind.to_bytes(2, 'big') + len(payload).to_bytes(2, 'big') + payload
+    server_name = b'\x00' + len(name).to_bytes(2, 'big') + name
+    extensions = b''.join([
+        extension(0, len(server_name).to_bytes(2, 'big') + server_name),
+        extension(43, b'\x04\x03\x04\x03\x03'),
+        extension(10, b'\x00\x04\x00\x1d\x00\x17'),
+        extension(13, b'\x00\x08\x08\x04\x04\x03\x08\x05\x05\x03'),
+        extension(51, b'\x00\x24\x00\x1d\x00\x20' + secrets.token_bytes(32)),
+    ])
+    prefix = b'\x03\x03' + bytes(32) + b'\x20' + secrets.token_bytes(32) + b'\x00\x06\x13\x01\x13\x02\x13\x03\x01\x00'
+    padding = 508 - len(prefix) - 2 - len(extensions) - 4
+    if padding < 0:
+        raise ValueError('Fake TLS probe domain too long')
+    extensions += extension(21, bytes(padding))
+    body = prefix + len(extensions).to_bytes(2, 'big') + extensions
+    handshake = b'\x01' + len(body).to_bytes(3, 'big') + body
+    hello = bytearray(b'\x16\x03\x01' + len(handshake).to_bytes(2, 'big') + handshake)
     hello[11:43] = bytes(32)
     digest = hmac.digest(secret, hello, hashlib.sha256)
     hello[11:43] = digest[:28] + struct.pack('<I', struct.unpack('<I', digest[28:])[0] ^ int(time.time()))

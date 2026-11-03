@@ -93,6 +93,27 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), original)
 
 
+class FakeTLSProbeTests(unittest.TestCase):
+    def test_hello_has_valid_hmac_timestamp_and_domain(self):
+        import hashlib
+        import hmac
+        import struct
+        from fake_tls import client_hello
+        secret = bytes.fromhex('ab' * 16)
+        with patch('fake_tls.time.time', return_value=1700000000):
+            hello = bytearray(client_hello('www.google.com', secret))
+        self.assertEqual(len(hello), 517)
+        self.assertEqual(hello[:5], b'\x16\x03\x01\x02\x00')
+        self.assertEqual(hello[43], 32)
+        self.assertIn(b'www.google.com', hello)
+        actual = hello[11:43]
+        hello[11:43] = bytes(32)
+        expected = hmac.digest(secret, hello, hashlib.sha256)
+        self.assertEqual(actual[:28], expected[:28])
+        timestamp = struct.unpack('<I', actual[28:])[0] ^ struct.unpack('<I', expected[28:])[0]
+        self.assertEqual(timestamp, 1700000000)
+
+
 class RefreshTests(unittest.TestCase):
     def test_failed_second_download_preserves_both_old_files(self):
         with tempfile.TemporaryDirectory() as folder:
