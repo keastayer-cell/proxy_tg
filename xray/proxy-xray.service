@@ -1,0 +1,32 @@
+[Unit]
+Description=Personal Xray VLESS REALITY
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=proxy-xray
+Group=proxy-xray
+ExecStart=/opt/proxy_tg/xray/xray run -config /etc/proxy_tg/xray/config.json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
+UMask=0077
+Environment=GOMEMLIMIT=80MiB
+Environment=GOGC=50
+MemoryHigh=96M
+MemoryMax=128M
+CPUQuota=35%
+TasksMax=64
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

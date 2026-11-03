@@ -1,0 +1,37 @@
+name: Verify and deploy personal REALITY
+on:
+  push:
+    branches: [main]
+    paths: ['xray/**', 'tests/test_xray.py', '.github/workflows/xray.yml']
+  pull_request:
+    paths: ['xray/**', 'tests/test_xray.py', '.github/workflows/xray.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: proxy-tg-xray-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check credentials persistence and configuration
+        run: |
+          python3 -m unittest discover -s tests -v
+          bash -n xray/install.sh xray/ci-deploy.sh
+          python3 xray/verify.py
+  deploy:
+    needs: verify
+    if: github.event_name != 'pull_request' && vars.XRAY_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy REALITY without restarting existing proxies
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}
+        run: bash xray/ci-deploy.sh
