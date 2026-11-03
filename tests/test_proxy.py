@@ -56,6 +56,18 @@ class SettingsTests(unittest.TestCase):
                 else:
                     self.assertIn('secret=dd' + self.env['PROXY_SECRET'], output.getvalue())
 
+    def test_alternative_listener_cannot_conflict_with_primary_or_internal_port(self):
+        self.assertEqual(proxy.listener_ports({**self.env, 'PROXY_ALT_PORT': '8443'}), [443, 8443])
+        for port in ('443', '8888', '80', '65536', 'bad'):
+            with self.subTest(port=port), self.assertRaises(ValueError):
+                proxy.listener_ports({**self.env, 'PROXY_ALT_PORT': port})
+        env = {**self.env, 'PROXY_ALT_PORT': '8443'}
+        with patch.dict(os.environ, env, clear=True), patch('sys.argv', ['proxy.py', 'link', '--port', '8443']):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(proxy.main(), 0)
+            self.assertIn('port=8443', out.getvalue())
+
     def test_fake_tls_link_includes_domain_and_disables_worker_fork(self):
         env = {**self.env, 'PROXY_TLS_DOMAIN': 'www.google.com'}
         with tempfile.TemporaryDirectory() as folder:

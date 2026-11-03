@@ -52,6 +52,18 @@ def tls_domain(env):
     return domain
 
 
+def listener_ports(env):
+    _, primary, stats, _ = settings(env)
+    result = [primary]
+    alternative = env.get('PROXY_ALT_PORT', '').strip()
+    if alternative:
+        alternative = int(alternative)
+        if not 1024 <= alternative <= 65535 or alternative in (primary, stats):
+            raise ValueError('Invalid PROXY_ALT_PORT')
+        result.append(alternative)
+    return result
+
+
 def command(env):
     _, port, stats, secret = settings(env)
     config = Path(env.get('PROXY_STATE_DIR', '/var/lib/proxy_tg')) / 'config.current'
@@ -60,7 +72,7 @@ def command(env):
     domain = tls_domain(env)
     return [
         env.get('PROXY_BINARY', '/opt/proxy_tg/current/bin/mtproto-proxy'),
-        '-p', str(stats), '-H', str(port), '-S', secret,
+        '-p', str(stats), '-H', ','.join(map(str, listener_ports(env))), '-S', secret,
         '-M', '0' if domain else '1', '-C', '64', '-c', '512',
         '--cpu-threads', '1', '--io-threads', '1',
         '--msg-buffers-size', '16777216',
@@ -108,6 +120,7 @@ def main():
     parser.add_argument('--env-file')
     parser.add_argument('action', choices=['init', 'validate', 'run', 'refresh', 'link', 'health'])
     parser.add_argument('--host')
+    parser.add_argument('--port', type=int, help='Select a configured listener for link')
     parser.add_argument('--output', default='/etc/proxy_tg/proxy.env')
     args = parser.parse_args()
     try:
@@ -137,6 +150,10 @@ def main():
             host, port, _, secret = settings(os.environ)
             domain = tls_domain(os.environ)
             if args.action == 'link':
+                if args.port is not None:
+                    if args.port not in listener_ports(os.environ):
+                        raise ValueError('Requested port is not configured')
+                    port = args.port
                 client_secret = 'ee' + secret + domain.encode('ascii').hex() if domain else 'dd' + secret
                 print('https://t.me/proxy?' + urlencode({'server': host, 'port': port, 'secret': client_secret}))
             else:
