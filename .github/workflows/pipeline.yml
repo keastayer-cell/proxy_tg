@@ -48,23 +48,10 @@ jobs:
         with:
           name: proxy-tg-${{ github.sha }}
           path: dist/
-      - name: Upload release (configuration and secrets excluded)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          fingerprint: ${{ secrets.VPS_FINGERPRINT }}
-          source: dist,proxy.py,deploy
-          target: /opt/proxy_tg/incoming
-      - name: Prepare or activate release
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          fingerprint: ${{ secrets.VPS_FINGERPRINT }}
-          script: |
-            set -eu
-            bash /opt/proxy_tg/incoming/deploy/bootstrap.sh '${{ secrets.VPS_HOST }}'
-            bash /opt/proxy_tg/incoming/deploy/apply-release.sh '${{ github.sha }}' '${{ github.run_id }}-${{ github.run_attempt }}'
+      - name: Upload and deploy with pinned OpenSSH host key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}
+        run: bash deploy/ci-deploy.sh
