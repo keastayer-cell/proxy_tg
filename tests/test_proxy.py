@@ -56,6 +56,24 @@ class SettingsTests(unittest.TestCase):
                 else:
                     self.assertIn('secret=dd' + self.env['PROXY_SECRET'], output.getvalue())
 
+    def test_fake_tls_link_includes_domain_and_disables_worker_fork(self):
+        env = {**self.env, 'PROXY_TLS_DOMAIN': 'www.google.com'}
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / 'config.current'
+            config.mkdir()
+            for name in proxy.UPSTREAM_URLS:
+                (config / name).touch()
+            argv = proxy.command({**env, 'PROXY_STATE_DIR': folder})
+            self.assertEqual(argv[argv.index('-M') + 1], '0')
+            self.assertEqual(argv[argv.index('-D') + 1], 'www.google.com')
+        with patch.dict(os.environ, env, clear=True), patch('sys.argv', ['proxy.py', 'link']):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(proxy.main(), 0)
+            self.assertIn('secret=ee' + self.env['PROXY_SECRET'] + b'www.google.com'.hex(), output.getvalue())
+        with self.assertRaises(ValueError):
+            proxy.tls_domain({'PROXY_TLS_DOMAIN': 'https://example.com'})
+
     def test_health_connects_only_to_local_proxy_port(self):
         with patch.dict(os.environ, self.env, clear=True), patch.object(proxy.socket, 'create_connection') as connect:
             with patch('sys.argv', ['proxy.py', 'health']), contextlib.redirect_stdout(io.StringIO()):

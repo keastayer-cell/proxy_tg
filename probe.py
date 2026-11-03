@@ -4,7 +4,7 @@ from collections import defaultdict
 import logging
 import os
 import secrets
-from proxy import load_env, settings
+from proxy import load_env, settings, tls_domain
 
 
 async def probe():
@@ -14,7 +14,13 @@ async def probe():
     from telethon.tl.types import ResPQ
     host, port, _, secret = settings(os.environ)
     loggers = defaultdict(lambda: logging.getLogger('probe'))
-    connection = ConnectionTcpMTProxyRandomizedIntermediate(
+    domain = tls_domain(os.environ)
+    connection_class = ConnectionTcpMTProxyRandomizedIntermediate
+    if domain:
+        from fake_tls import connection_type
+        connection_class = connection_type()
+        connection_class.tls_domain = domain
+    connection = connection_class(
         '149.154.167.51', 443, 2, loggers=loggers,
         proxy=(host, port, 'dd' + secret),
     )

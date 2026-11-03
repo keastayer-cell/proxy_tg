@@ -45,17 +45,26 @@ def settings(env):
     return host, port, stats, secret.lower()
 
 
+def tls_domain(env):
+    domain = env.get('PROXY_TLS_DOMAIN', '').strip().lower()
+    if domain and not re.fullmatch(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?', domain):
+        raise ValueError('Invalid PROXY_TLS_DOMAIN')
+    return domain
+
+
 def command(env):
     _, port, stats, secret = settings(env)
     config = Path(env.get('PROXY_STATE_DIR', '/var/lib/proxy_tg')) / 'config.current'
     if not all((config / name).is_file() for name in UPSTREAM_URLS):
         raise ValueError('Telegram configuration missing; run refresh first')
+    domain = tls_domain(env)
     return [
         env.get('PROXY_BINARY', '/opt/proxy_tg/current/bin/mtproto-proxy'),
         '-p', str(stats), '-H', str(port), '-S', secret,
-        '-M', '1', '-C', '64', '-c', '512',
+        '-M', '0' if domain else '1', '-C', '64', '-c', '512',
         '--cpu-threads', '1', '--io-threads', '1',
         '--msg-buffers-size', '16777216',
+        *(['-D', domain] if domain else []),
         '--aes-pwd', str(config / 'proxy-secret'), str(config / 'proxy-multi.conf'),
     ]
 
@@ -126,8 +135,10 @@ def main():
             os.execv(argv[0], argv)
         else:
             host, port, _, secret = settings(os.environ)
+            domain = tls_domain(os.environ)
             if args.action == 'link':
-                print('https://t.me/proxy?' + urlencode({'server': host, 'port': port, 'secret': 'dd' + secret}))
+                client_secret = 'ee' + secret + domain.encode('ascii').hex() if domain else 'dd' + secret
+                print('https://t.me/proxy?' + urlencode({'server': host, 'port': port, 'secret': client_secret}))
             else:
                 print('Configuration valid (secret hidden)')
     except (OSError, ValueError) as error:
