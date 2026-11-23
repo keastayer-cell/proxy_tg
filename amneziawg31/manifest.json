@@ -1,0 +1,12 @@
+{
+  "protocol": "3.1",
+  "go_commit": "08fe3d33bbb116be09a6183d02609311b8b0c9e8",
+  "tools_commit": "ee0f0a9aa34ff0a0da4b3433b9512781cfe02843",
+  "tools_tag": "v3.1.20260812",
+  "parameters_source": "amnezia-client/5.0.2.1 (327e5985df0ef16ea03058b611e171b1d3bc0420)",
+  "toolchain": "go1.25.12",
+  "binaries": {
+    "/usr/local/sbin/awg31-go": "3b0fa7f4f8135aaf4ddd04e12d84d85b271a2f1cf89b8087ffd6137b034d076c",
+    "/usr/local/bin/awg31": "d3dff54316939fbeda3b148a859e574572db2753d8841ea8c5ce3ce25243a4d4"
+  }
+}

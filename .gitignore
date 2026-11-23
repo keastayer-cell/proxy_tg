@@ -11,3 +11,11 @@ __pycache__/
 .DS_Store
 dist/
 build/
+
+# Private AmneziaWG runtime data and exported connection profiles.
+/amneziawg31/private/
+/amneziawg31/profiles/
+/amneziawg31/keys.json
+/amneziawg31/server.conf
+iPhone-AWG31.*
+*.vpn

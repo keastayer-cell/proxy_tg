@@ -1,0 +1,21 @@
+[Unit]
+Description=AmneziaWG 3.1 userspace VPN
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+Environment=LOG_LEVEL=error
+UMask=0077
+ExecStart=/usr/local/sbin/awg31-go -f awg31
+ExecStartPost=/usr/bin/python3 /opt/awg31/manage.py up
+ExecStopPost=/usr/bin/python3 /opt/awg31/manage.py down
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
